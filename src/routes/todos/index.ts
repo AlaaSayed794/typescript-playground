@@ -10,7 +10,26 @@ export type Todo = {
 
 
 //mimic database, this will reset when we reset the server
-let todos: Todo[] = []
+let todos: Todo[] = [
+    {
+        "id": "1g0td444lqajs4ami0rwuq",
+        "title": "new todo",
+        "completed": false
+    }, {
+        "id": "7zjk3o65p36xo0b16446w",
+        "title": "new todo1",
+        "completed": true
+    },
+    {
+        "id": "7w5peg740enr2zi4f3gid",
+        "title": "new todo2",
+        "completed": false
+    }, {
+        "id": "cwpmt6fl5g6oizhq6d8qo",
+        "title": "new todo3",
+        "completed": true
+    }
+]
 
 
 const todoRoutes = express.Router();
@@ -18,8 +37,67 @@ todoRoutes.use(bodyParser.json())
 
 
 //get all todos
-todoRoutes.get('/', (_req: Request, res: Response): void => {
-    res.json(todos);
+//now we will allow 3 query parameters , completed = true/false , limit=number, sort=asc/dec
+// if completed,limit are corrupted we will just not filter
+// if sort is corrupted,we send a bad request , just to show both scenarios
+todoRoutes.get('/', (req: Request, res: Response): void => {
+    //this is a number or NaN , NaN evaluates to false
+    const limit: number = parseInt(req.query.limit as string)
+
+    //this is a string that accepts true/false
+    const completed: string = req.query.completed as string
+
+    const sortQuery: string = req.query.sort as string
+
+    //define a boolean|undefined variable, initially undefined
+    let completedBool: boolean | undefined;
+    //this is the todos we're going to return, initially = all todos
+    let newTodos = todos
+
+    //if limit is defined then it is a number,
+    // 0 evaluates to false but we want to allow user to return 0 todos (just for illustration) so we Or it with the check
+    if (limit || limit === 0) {
+        //if limit >= length then we don't need to filter
+        if (limit < newTodos.length) {
+            //
+            newTodos = newTodos.slice(0, limit)
+        }
+    }
+
+    if (!(typeof completed == "undefined")) {
+        if (completed.toLowerCase() == 'true') {
+            completedBool = true
+        }
+        else if (completed.toLowerCase() == 'false') {
+            completedBool = false
+        }
+    }
+    if (!(typeof completedBool == "undefined")) {
+        newTodos = newTodos.filter(t => t.completed === completedBool)
+    }
+
+    if (!(typeof sortQuery == "undefined")) {
+        if (sortQuery.toLowerCase() !== "asc" && sortQuery.toLowerCase() !== "dec") {
+            res.status(400).send('sort accepts only asc/dec case insensitive')
+        }
+        else {
+            //sort todos by title
+            newTodos = newTodos.sort((b, a) => {
+                // decide which is first in condition based on sort method
+                const first: Todo = sortQuery.toLowerCase() === "asc" ? b : a
+                let second: Todo = sortQuery.toLowerCase() === "asc" ? a : b
+                if (first.title > second.title) {
+                    return 1
+                }
+                else if (first.title < second.title) {
+                    return -1
+                }
+                return 0
+            })
+        }
+    }
+
+    res.json(newTodos);
 });
 
 //get todo by id, we pass variable url by this syntax :varName
